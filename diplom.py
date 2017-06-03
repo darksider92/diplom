@@ -1,22 +1,19 @@
 ﻿import requests
 import json
-import time
 import config
-
 
 config.get_params()
 
 
-def print_process(print_info):
+def print_process():
     """Показ процесса работы"""
-    print(print_info)
-    print("." * 60)
+    print('.', end='', flush=True)
 
 
 def make_request(method, params):
     """Отправка запроса"""
     url = "{}/{}".format(config.VK_API_ENDPOINT, method)
-    print_process("\tContact the server, please wait")
+    print_process()
     while True:
         try:
             response = requests.get(url, params)
@@ -24,23 +21,17 @@ def make_request(method, params):
             response_list['response']
             break
         except KeyError:
-            time.sleep(1)  # при возврате неверного ответа на запрос: ожидание 1с и отравка повторного запроса
+            pass
     return response_list
 
 
 def get_users_is_members(params, friends_list):
     """Является ли пользователь из списка друзей подписчиком группы"""
     final_list = []
-    x = 0
-    y = 250
-    all_params = params['user_ids'].split(', ')
-    while all_params[x:y]:
-        params['user_ids'] = str(friends_list['response']['items'][x:y])[1:-1]
-        x = y
-        y += 250
+    for i in range(0, len(friends_list), 250):
+        params['user_ids'] = ", ".join([str(i) for i in friends_list[i:i+250]])
         members = make_request('groups.isMember', params)
-        for member in members['response']:
-            final_list.append(member)
+        [final_list.append(member) for member in members['response']]
     return final_list
 
 
@@ -49,7 +40,7 @@ def get_group_without_user_friends(params, groups_list, friends_list):
     user_is_along = []
     for group in groups_list['response']['items']:
         params['group_id'] = group['id']
-        params['user_ids'] = str(friends_list['response']['items'])[1:-1]
+        params['user_ids'] = ", ".join([str(i) for i in friends_list])
         members_group = get_users_is_members(params, friends_list)
         flag = False
         for member in members_group:
@@ -75,7 +66,7 @@ def save_json(data):
 def main():
     params = config.get_params()
     params['user_id'] = int(input("Enter id user: "))
-    friends_list = make_request('friends.get', params)
+    friends_list = make_request('friends.get', params)["response"]["items"]
     params['extended'] = 1
     groups_list = make_request('groups.get', params)
     data = get_group_without_user_friends(params, groups_list, friends_list)
