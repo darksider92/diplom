@@ -1,8 +1,15 @@
 ﻿import requests
 import json
-import config
 
-config.get_params()
+
+VK_API_ENDPOINT = "https://api.vk.com/method"
+
+
+def get_params():
+    """Необходимые параметры для запроса."""
+    with open("config.json", "r", encoding="utf-8")as f:
+        params = json.load(f)
+        return params
 
 
 def print_process():
@@ -12,15 +19,17 @@ def print_process():
 
 def make_request(method, params):
     """Отправка запроса"""
-    url = "{}/{}".format(config.VK_API_ENDPOINT, method)
+    url = "{}/{}".format(VK_API_ENDPOINT, method)
     print_process()
     while True:
         try:
             response = requests.get(url, params)
+            # check if VK return 400 or 500 error
+            response.raise_for_status()
             response_list = response.json()
             response_list['response']
             break
-        except KeyError:
+        except (KeyError, requests.HTTPError):
             pass
     return response_list
 
@@ -29,7 +38,7 @@ def get_users_is_members(params, friends_list):
     """Является ли пользователь из списка друзей подписчиком группы"""
     final_list = []
     for i in range(0, len(friends_list), 250):
-        params['user_ids'] = ", ".join([str(i) for i in friends_list[i:i+250]])
+        params['user_ids'] = ", ".join([str(i) for i in friends_list[i:i + 250]])
         members = make_request('groups.isMember', params)
         [final_list.append(member) for member in members['response']]
     return final_list
@@ -60,11 +69,11 @@ def save_json(data):
     """Сохранение файла в json"""
     with open('result.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-        print("The size of the saved file: {}".format(len(data)))
+        print("\n The size of the saved file: {}".format(len(data)))
 
 
 def main():
-    params = config.get_params()
+    params = get_params()
     params['user_id'] = int(input("Enter id user: "))
     friends_list = make_request('friends.get', params)["response"]["items"]
     params['extended'] = 1
